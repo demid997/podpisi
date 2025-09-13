@@ -1,0 +1,121 @@
+let canvas = document.getElementById('signature-canvas');
+let ctx = canvas.getContext('2d');
+let isDrawing = false;
+let filename = "{{ filename }}";
+
+// Настройка канваса
+ctx.lineWidth = 2;
+ctx.strokeStyle = '#000';
+
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('mouseout', stopDrawing);
+
+// Для сенсорных устройств
+canvas.addEventListener('touchstart', handleTouchStart);
+canvas.addEventListener('touchmove', handleTouchMove);
+
+function startDrawing(e) {
+    isDrawing = true;
+    [x, y] = getMousePos(canvas, e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+    [x, y] = getMousePos(canvas, e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+function getMousePos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    return [
+        (evt.clientX - rect.left) / (rect.right - rect.left) * canvas.width,
+        (evt.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height
+    ];
+}
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent("mousemove", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+async function applySignature() {
+    const signatureData = canvas.toDataURL('image/png');
+    
+    const response = await fetch('/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            filename: filename,
+            signature: signatureData
+        })
+    });
+
+    const result = await response.json();
+
+    if (result.download_url) {
+        alert('Подпись применена! Скачивание...');
+        window.location.href = result.download_url;
+    } else {
+        alert('Ошибка: ' + result.error);
+    }
+}
+
+// Показываем предварительный просмотр
+document.addEventListener('DOMContentLoaded', async () => {
+    const previewDiv = document.getElementById('preview');
+    const ext = filename.split('.').pop().toLowerCase();
+
+    if (ext === 'pdf') {
+        const loadingTask = pdfjsLib.getDocument('/uploads/' + encodeURIComponent(filename));
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        const canvasPreview = document.createElement('canvas');
+        const context = canvasPreview.getContext('2d');
+        canvasPreview.height = viewport.height;
+        canvasPreview.width = viewport.width;
+        
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        await page.render(renderContext).promise;
+        previewDiv.appendChild(canvasPreview);
+    } else if (['jpg', 'jpeg', 'png'].includes(ext)) {
+        const img = new Image();
+        img.src = '/uploads/' + encodeURIComponent(filename);
+        img.style.maxWidth = '100%';
+        previewDiv.appendChild(img);
+    } else if (ext === 'docx') {
+        previewDiv.innerHTML = '<p>Предварительный просмотр DOCX недоступен. Файл будет обработан.</p>';
+    }
+});
