@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Подпишите документ — Уралсиб</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        #canvas-container { border: 1px solid #ccc; background: white; margin: 20px auto; position: relative; }
+        #signature-canvas { border: 1px solid #ddd; cursor: crosshair; }
+        button { padding: 10px 20px; margin: 5px; }
+        .controls { text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>Подпишите документ</h2>
+    <div id="preview"></div>
+
+    <div id="canvas-container">
+        <canvas id="signature-canvas" width="500" height="150"></canvas>
+    </div>
+
+    <div class="controls">
+        <button onclick="clearCanvas()">Очистить</button>
+        <button onclick="applySignature()">Применить подпись</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
